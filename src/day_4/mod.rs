@@ -93,12 +93,14 @@ fn cmp<T: PartialOrd>(x: T, y: T) -> Ordering {
     }
 }
 
-fn get_max<U, C, V>(v: &[U], getter: C) -> &U
+fn get_max<U, C, V>(v: &[U], getter: C) -> Result<&U, StatusCode>
 where
     C: Fn(&U) -> V,
     V: PartialOrd,
 {
-    v.iter().max_by(|x, y| cmp(getter(x), getter(y))).unwrap()
+    v.iter()
+        .max_by(|x, y| cmp(getter(x), getter(y)))
+        .ok_or(StatusCode::BAD_REQUEST)
 }
 
 async fn parse_reindeer_bonus(
@@ -106,23 +108,21 @@ async fn parse_reindeer_bonus(
 ) -> Result<String, StatusCode> {
     let reindeers: Vec<ReindeerBonus> =
         serde_json::from_value(payload).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let fastest = get_max(&reindeers, ReindeerBonus::strength);
-    let tallest = get_max(&reindeers, ReindeerBonus::height);
-    let magician = get_max(&reindeers, ReindeerBonus::magic);
-    let consumer = get_max(&reindeers, ReindeerBonus::candies);
-    Ok(serde_json::to_string_pretty(&BonusReply {
+    let fastest = get_max(&reindeers, ReindeerBonus::strength)?;
+    let tallest = get_max(&reindeers, ReindeerBonus::height)?;
+    let magician = get_max(&reindeers, ReindeerBonus::magic)?;
+    let consumer = get_max(&reindeers, ReindeerBonus::candies)?;
+    serde_json::to_string_pretty(&BonusReply {
         fastest: fastest.parse_fastest(),
         tallest: tallest.parse_tallest(),
         magician: magician.parse_magician(),
         consumer: consumer.parse_consumer(),
     })
-    .unwrap())
+    .map_err(|_| StatusCode::BAD_REQUEST)
 }
 
-pub async fn run() -> shuttle_axum::ShuttleAxum {
-    let router = Router::new()
+pub fn router() -> Router {
+    Router::new()
         .route("/4/strength", routing::post(parse_reindeer))
-        .route("/4/contest", routing::post(parse_reindeer_bonus));
-
-    Ok(router.into())
+        .route("/4/contest", routing::post(parse_reindeer_bonus))
 }

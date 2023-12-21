@@ -17,10 +17,9 @@ async fn error_handler() -> Result<String, StatusCode> {
     Err(StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub async fn run() -> shuttle_axum::ShuttleAxum {
-    let router = Router::new()
+pub fn router() -> Router {
+    Router::new()
         .route("/", get(hello_world))
         .route("/1/*v", get(bits_cube))
-        .route("/-1/error", get(error_handler));
-    Ok(router.into())
+        .route("/-1/error", get(error_handler))
 }
