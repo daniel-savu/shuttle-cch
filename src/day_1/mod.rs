@@ -24,5 +24,3 @@ pub async fn run() -> shuttle_axum::ShuttleAxum {
         .route("/-1/error", get(error_handler));
     Ok(router.into())
 }
-
-
